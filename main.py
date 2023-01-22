@@ -5,18 +5,7 @@ import making_db
 from datetime import datetime
 import sqlite3
 
-
 app = FastAPI()
-
-
-@app.get('/')
-def hello():
-    # api_key = '4968e589f443bde5a7ebc60af5cb1da0'
-    # settings = {'units': 'metric'}
-    # data = requests.get(f'https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}')
-    # return {'city': city, 'weather': data.json()}
-    return 'Hello World'
-
 
 @app.post('/weather/{city}')
 def create_city(city: str):
@@ -38,13 +27,15 @@ def create_city(city: str):
         pressure = weather_data['main']['pressure']
         timestamp = datetime.now()
 
+        #Запись в БД если такого города ещё нет
         try:
             cursor.execute(
-                "INSERT INTO weather_city (city, temp, wind, pressure, timestamp) VALUES (?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO weather_city (city, temp, wind, pressure, timestamp) VALUES (?, ?, ?, ?, ?)",
                 (city, temp, wind, pressure, timestamp))
             conn.commit()
-            return 'OK'
+            return 'Данные записаны'
 
+        #Если такой город уже существует, данные обновляются
         except sqlite3.IntegrityError:
             timestamp = datetime.now()
             cursor.execute(
@@ -53,11 +44,13 @@ def create_city(city: str):
             conn.commit()
             return 'OK'
 
+    #Проверьте правильность ввода названия
     else:
         return 'Input correct name of city'
 
 @app.get('/last_weather')
 def get_weather():
+    '''Получить список всех городов и температуры'''
     conn = sqlite3.connect('weather_city.db')
     cursor = conn.cursor()
     (cursor.execute(
@@ -69,6 +62,7 @@ def get_weather():
 
 @app.get('/city_stats/{city}')
 def get_city_stats(city: str):
+    '''Получить все данные города'''
     conn = sqlite3.connect('weather_city.db')
     cursor = conn.cursor()
     (cursor.execute(
